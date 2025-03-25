@@ -80,15 +80,31 @@ app.delete('/events/:id', (req, res) => {
 });
 
 // Availability API
-app.get('/availability', async (req, res) => {
-  const { date, time } = req.query;
-  if (!date || !time)
-    return res.status(400).json({ error: 'Data e ora sono obbligatorie' });
+app.get('/availability/all', async (req, res) => {
+  const { date } = req.query;
+  if (!date) return res.status(400).json({ error: 'Parametro "date" mancante' });
 
-  const collaborators = readJsonFile(collaboratorsFile);
-  const available = await getAvailableCollaborators(collaborators, date, time);
-  res.json({ availableCollaborators: available });
+  const slotDurationMinutes = 30;
+  const timeSlots = ['09:00', '09:30', '10:00', '10:30', '11:00', '14:00', '14:30', '15:00'];
+
+  try {
+    const collaborators = readJsonFile(collaboratorsFile);
+    const results = {};
+
+    for (const slot of timeSlots) {
+      const freeCollaborators = await getAvailableCollaborators(collaborators, date, slot);
+      if (freeCollaborators.length > 0) {
+        results[slot] = freeCollaborators;
+      }
+    }
+
+    res.json(results);
+  } catch (err) {
+    console.error('Errore su /availability/all:', err.message);
+    res.status(500).json({ error: 'Errore interno' });
+  }
 });
+
 
 // Default route
 app.get('/', (req, res) => res.send('✅ Agencee API attivo'));
